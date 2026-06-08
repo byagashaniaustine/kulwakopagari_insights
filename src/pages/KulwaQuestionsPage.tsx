@@ -1,5 +1,5 @@
-import { useState, useEffect, useCallback } from 'react';
-import type { KulwaQuestionsResponse, KulwaSummary, DayFilter } from '../types';
+import { useState, useEffect, useCallback, useMemo } from 'react';
+import type { KulwaQuestion, KulwaSummary, DayFilter } from '../types';
 import {
   fetchKulwaQuestions, fetchKulwaSummary, bustKulwaCache,
   peekKulwaQuestions, isFreshKulwaQuestions,
@@ -9,47 +9,67 @@ import FilterBar from '../components/FilterBar';
 import { KulwaQuestionsTable } from '../components/QuestionsTable';
 import { TableSkeleton, ErrorBlock, SectionCard } from '../components/UI';
 
-const PAGE = 50;
+const FETCH_LIMIT = 1000;
+const PAGE        = 50;
 
 export default function KulwaQuestionsPage() {
   const [days, setDays]       = useState<DayFilter>(7);
   const [intent, setIntent]   = useState('');
   const [offset, setOffset]   = useState(0);
-  const [result, setResult]   = useState<KulwaQuestionsResponse | null>(() => peekKulwaQuestions(7, PAGE, 0));
+  const [allData, setAllData] = useState<KulwaQuestion[]>(
+    () => peekKulwaQuestions(7, FETCH_LIMIT, 0)?.data ?? []
+  );
   const [summary, setSummary] = useState<KulwaSummary | null>(() => peekKulwaSummary(7));
-  const [loading, setLoading] = useState(!peekKulwaQuestions(7, PAGE, 0));
+  const [loading, setLoading] = useState(!peekKulwaQuestions(7, FETCH_LIMIT, 0));
   const [error, setError]     = useState<string | null>(null);
 
+  // Only days triggers a new fetch — intent is filtered client-side
   const load = useCallback(async (bust = false) => {
     if (bust) {
       bustKulwaCache();
     } else {
-      const staleQ = peekKulwaQuestions(days, PAGE, offset, intent);
+      const staleQ = peekKulwaQuestions(days, FETCH_LIMIT, 0);
       const staleS = peekKulwaSummary(days);
-      if (staleQ) setResult(staleQ);
+      if (staleQ) setAllData(staleQ.data);
       if (staleS) setSummary(staleS);
-      if (isFreshKulwaQuestions(days, PAGE, offset, intent)) return;
+      if (isFreshKulwaQuestions(days, FETCH_LIMIT, 0)) return;
       if (!staleQ) setLoading(true);
     }
     setError(null);
     try {
       const [q, s] = await Promise.all([
-        fetchKulwaQuestions(days, PAGE, offset, intent),
+        fetchKulwaQuestions(days, FETCH_LIMIT, 0),
         fetchKulwaSummary(days),
       ]);
-      setResult(q);
+      setAllData(q.data);
       setSummary(s);
     } catch (e) {
-      if (!result) setError(e instanceof Error ? e.message : 'Failed to load');
+      if (!allData.length) setError(e instanceof Error ? e.message : 'Failed to load');
     } finally {
       setLoading(false);
     }
-  }, [days, offset, intent]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [days]); // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => { load(); }, [load]);
 
+  // Reset pagination when intent filter changes
+  useEffect(() => { setOffset(0); }, [intent]);
+
+  // Client-side intent filtering — instant
+  const filtered = useMemo(() => {
+    if (!intent) return allData;
+    return allData.filter(q => q.intent === intent);
+  }, [allData, intent]);
+
+  const pageResult = useMemo(() => ({
+    total: filtered.length,
+    offset,
+    limit: PAGE,
+    data: filtered.slice(offset, offset + PAGE),
+  }), [filtered, offset]);
+
   const handleDays   = (d: DayFilter) => { setDays(d); setOffset(0); setIntent(''); };
-  const handleIntent = (i: string)    => { setIntent(i); setOffset(0); };
+  const handleIntent = (i: string)    => { setIntent(i); };
 
   return (
     <div className="h-full flex flex-col overflow-hidden">
@@ -57,16 +77,16 @@ export default function KulwaQuestionsPage() {
         loading={loading} title="Conversations" subtitle="Kulwa-Kopagari" />
 
       <div className="flex-1 overflow-y-auto" style={{ background: 'var(--canvas)' }}>
-        {error && !result ? (
+        {error && !allData.length ? (
           <div className="p-8"><ErrorBlock message={error} onRetry={load} /></div>
         ) : (
           <div className="p-6 max-w-[1600px] mx-auto">
             <SectionCard title="All Conversations"
-              description={result ? `${result.total.toLocaleString()} ${intent ? 'matching' : 'total'}` : undefined}>
-              {loading && !result ? <TableSkeleton rows={8} /> : result ? (
+              description={allData.length ? `${filtered.length.toLocaleString()} ${intent ? 'matching' : 'total'}` : undefined}>
+              {loading && !allData.length ? <TableSkeleton rows={8} /> : allData.length ? (
                 <KulwaQuestionsTable
-                  data={result.data}
-                  total={result.total}
+                  data={pageResult.data}
+                  total={pageResult.total}
                   offset={offset}
                   limit={PAGE}
                   onPage={setOffset}

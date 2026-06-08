@@ -1,6 +1,6 @@
-import { useState, useEffect, useCallback, useContext } from 'react';
+import { useState, useEffect, useCallback, useContext, useMemo } from 'react';
 import { RefreshCw, Search, Menu } from 'lucide-react';
-import type { KulwaConversation, KulwaConversationsResponse, ClosingState } from '../types';
+import type { KulwaConversation, ClosingState } from '../types';
 import {
   fetchKulwaConversations, bustKulwaCache,
   peekKulwaConversations, isFreshKulwaConversations,
@@ -17,7 +17,8 @@ const DAY_OPTS: { label: string; value: DayOpt }[] = [
   { label: '90d', value: 90 },
 ];
 
-const LIMIT = 50;
+const FETCH_LIMIT = 1000;
+const PAGE_SIZE   = 50;
 
 function ChannelBadge({ channel }: { channel: string }) {
   const colors: Record<string, { bg: string; color: string }> = {
@@ -75,66 +76,77 @@ function fmtReplyMs(ms: number | null): string {
 
 export default function KulwaConversationsPage() {
   const { openSidebar } = useContext(AppContext);
-  const [days, setDays]           = useState<DayOpt>(7);
-  const [status, setStatus]       = useState<StatusFilter>('');
-  const [intent, setIntent]       = useState('');
-  const [search, setSearch]       = useState('');
-  const [searchInput, setSearchInput] = useState('');
-  const [offset, setOffset]       = useState(0);
-  const [result, setResult]       = useState<KulwaConversationsResponse | null>(
-    () => peekKulwaConversations(7, LIMIT, 0, '', '', '')
+  const [days, setDays]         = useState<DayOpt>(7);
+  const [status, setStatus]     = useState<StatusFilter>('');
+  const [intent, setIntent]     = useState('');
+  const [search, setSearch]     = useState('');
+  const [offset, setOffset]     = useState(0);
+  const [allRows, setAllRows]   = useState<KulwaConversation[]>(
+    () => peekKulwaConversations(7, FETCH_LIMIT, 0, '', '', '')?.data ?? []
   );
-  const [loading, setLoading]     = useState(!peekKulwaConversations(7, LIMIT, 0, '', '', ''));
-  const [error, setError]         = useState<string | null>(null);
+  const [loading, setLoading]   = useState(!peekKulwaConversations(7, FETCH_LIMIT, 0, '', '', ''));
+  const [error, setError]       = useState<string | null>(null);
   const [knownIntents, setKnownIntents] = useState<{ value: string; label: string }[]>([]);
 
+  // Only days triggers a new fetch — status/intent/search are client-side
   const load = useCallback(async (bust = false) => {
     if (bust) {
       bustKulwaCache();
     } else {
-      const stale = peekKulwaConversations(days, LIMIT, offset, status, intent, search);
-      if (stale) setResult(stale);
-      if (isFreshKulwaConversations(days, LIMIT, offset, status, intent, search)) return;
+      const stale = peekKulwaConversations(days, FETCH_LIMIT, 0, '', '', '');
+      if (stale) setAllRows(stale.data);
+      if (isFreshKulwaConversations(days, FETCH_LIMIT, 0, '', '', '')) return;
       if (!stale) setLoading(true);
     }
     setError(null);
     try {
-      const data = await fetchKulwaConversations(days, LIMIT, offset, status, intent, search);
-      setResult(data);
-      setKnownIntents(prev => {
-        const map = new Map(prev.map(i => [i.value, i.label]));
+      const data = await fetchKulwaConversations(days, FETCH_LIMIT, 0, '', '', '');
+      setAllRows(data.data);
+      setKnownIntents(() => {
+        const map = new Map<string, string>();
         data.data.forEach(c => { if (c.intent_id) map.set(c.intent_id, c.intent || c.intent_id); });
         return Array.from(map.entries()).map(([value, label]) => ({ value, label })).sort((a, b) => a.label.localeCompare(b.label));
       });
     } catch (e) {
-      if (!result) setError(e instanceof Error ? e.message : 'Failed to load');
+      if (!allRows.length) setError(e instanceof Error ? e.message : 'Failed to load');
     } finally {
       setLoading(false);
     }
-  }, [days, offset, status, intent, search]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [days]); // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => { load(); }, [load]);
 
-  // Auto-refresh every 5 minutes to pick up background cache updates
   useEffect(() => {
     const id = setInterval(() => { load(); }, 5 * 60 * 1000);
     return () => clearInterval(id);
   }, [load]);
 
-  const resetAndLoad = (patch: Partial<{ days: DayOpt; status: StatusFilter; intent: string; search: string }>) => {
-    if ('days'   in patch) setDays(patch.days!);
-    if ('status' in patch) setStatus(patch.status!);
-    if ('intent' in patch) setIntent(patch.intent!);
-    if ('search' in patch) setSearch(patch.search!);
+  // Reset pagination whenever a client-side filter changes
+  useEffect(() => { setOffset(0); }, [status, intent, search]);
+
+  // Client-side filtering — instant, no network call
+  const filtered = useMemo(() => {
+    let rows = allRows;
+    if (status) rows = rows.filter(r => r.status === status);
+    if (intent) rows = rows.filter(r => r.intent_id === intent || r.intent === intent);
+    if (search) {
+      const q = search.toLowerCase();
+      rows = rows.filter(r =>
+        r.name.toLowerCase().includes(q) || r.phone?.toLowerCase().includes(q)
+      );
+    }
+    return rows;
+  }, [allRows, status, intent, search]);
+
+  const pageRows = filtered.slice(offset, offset + PAGE_SIZE);
+
+  const handleDays = (d: DayOpt) => {
+    setDays(d);
+    setStatus('');
+    setIntent('');
+    setSearch('');
     setOffset(0);
   };
-
-  const handleSearchSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    resetAndLoad({ search: searchInput });
-  };
-
-  const rows: KulwaConversation[] = result?.data ?? [];
 
   return (
     <div className="h-full flex flex-col overflow-hidden">
@@ -151,9 +163,9 @@ export default function KulwaConversationsPage() {
           <h1 className="font-extrabold text-[22px] tracking-tight leading-none" style={{ color: 'var(--ink)' }}>
             Conversations
           </h1>
-          {result && (
+          {allRows.length > 0 && (
             <p className="text-[12px] mt-[3px]" style={{ color: 'var(--ink-3)' }}>
-              {result.total.toLocaleString()} total conversations
+              {filtered.length.toLocaleString()} {status || intent || search ? 'matching' : 'total'} conversations
             </p>
           )}
         </div>
@@ -163,7 +175,7 @@ export default function KulwaConversationsPage() {
           {DAY_OPTS.map(opt => {
             const isActive = days === opt.value;
             return (
-              <button key={opt.value} type="button" onClick={() => resetAndLoad({ days: opt.value })}
+              <button key={opt.value} type="button" onClick={() => handleDays(opt.value)}
                       className="rounded-[6px] text-[13px] font-semibold transition-all duration-150"
                       style={{
                         height: '32px', padding: '0 14px', border: 'none', cursor: 'pointer',
@@ -177,30 +189,29 @@ export default function KulwaConversationsPage() {
           })}
         </div>
 
-        <form onSubmit={handleSearchSubmit} className="flex items-center gap-1">
-          <div className="relative">
-            <Search size={13} className="absolute left-[10px] top-1/2 -translate-y-1/2" style={{ color: 'var(--ink-3)' }} />
-            <input
-              type="text"
-              value={searchInput}
-              onChange={e => setSearchInput(e.target.value)}
-              placeholder="Search name…"
-              className="rounded-[8px] text-[13px] font-medium outline-none"
-              style={{
-                height: 36, paddingLeft: 30, paddingRight: 10,
-                border: '1px solid var(--line)', background: 'var(--surface)',
-                color: 'var(--ink)', width: 180,
-              }}
-            />
-          </div>
-        </form>
+        {/* Instant search — filters as you type */}
+        <div className="relative">
+          <Search size={13} className="absolute left-[10px] top-1/2 -translate-y-1/2" style={{ color: 'var(--ink-3)' }} />
+          <input
+            type="text"
+            value={search}
+            onChange={e => setSearch(e.target.value)}
+            placeholder="Search name…"
+            className="rounded-[8px] text-[13px] font-medium outline-none"
+            style={{
+              height: 36, paddingLeft: 30, paddingRight: 10,
+              border: '1px solid var(--line)', background: 'var(--surface)',
+              color: 'var(--ink)', width: 180,
+            }}
+          />
+        </div>
 
         <div className="flex items-center gap-1">
           {(['', 'active', 'resolved'] as StatusFilter[]).map(s => {
             const label = s === '' ? 'All' : s.charAt(0).toUpperCase() + s.slice(1);
             const isActive = status === s;
             return (
-              <button key={s} type="button" onClick={() => resetAndLoad({ status: s })}
+              <button key={s} type="button" onClick={() => setStatus(s)}
                       className="rounded-full text-[12px] font-semibold transition-all duration-150"
                       style={{
                         height: 30, padding: '0 12px', border: '1px solid var(--line)',
@@ -215,7 +226,7 @@ export default function KulwaConversationsPage() {
 
         <select
           value={intent}
-          onChange={e => resetAndLoad({ intent: e.target.value })}
+          onChange={e => setIntent(e.target.value)}
           className="rounded-[8px] text-[13px] font-medium outline-none"
           style={{
             height: 36, padding: '0 10px',
@@ -234,11 +245,11 @@ export default function KulwaConversationsPage() {
       </div>
 
       <div className="flex-1 overflow-y-auto" style={{ background: 'var(--canvas)' }}>
-        {error && !result ? (
+        {error && !allRows.length ? (
           <div className="p-8"><ErrorBlock message={error} onRetry={load} /></div>
         ) : (
           <div className="card m-6 overflow-hidden animate-fadeUp">
-            {loading && !result ? (
+            {loading && !allRows.length ? (
               <TableSkeleton rows={8} />
             ) : (
               <>
@@ -253,15 +264,15 @@ export default function KulwaConversationsPage() {
                       </tr>
                     </thead>
                     <tbody>
-                      {rows.length === 0 ? (
+                      {pageRows.length === 0 ? (
                         <tr>
                           <td colSpan={9} className="px-5 py-12 text-center text-[13px]" style={{ color: 'var(--ink-3)' }}>
                             No conversations found.
                           </td>
                         </tr>
-                      ) : rows.map((row, idx) => (
+                      ) : pageRows.map((row, idx) => (
                         <tr key={row.id}
-                            style={{ borderBottom: idx < rows.length - 1 ? '1px solid var(--line)' : 'none' }}
+                            style={{ borderBottom: idx < pageRows.length - 1 ? '1px solid var(--line)' : 'none' }}
                             onMouseEnter={e => (e.currentTarget as HTMLElement).style.background = 'var(--surface-2)'}
                             onMouseLeave={e => (e.currentTarget as HTMLElement).style.background = 'transparent'}>
                           <td className="px-5 py-3">
@@ -290,9 +301,7 @@ export default function KulwaConversationsPage() {
                     </tbody>
                   </table>
                 </div>
-                {result && (
-                  <Pagination offset={offset} limit={LIMIT} total={result.total} onPage={setOffset} unit="conversations" />
-                )}
+                <Pagination offset={offset} limit={PAGE_SIZE} total={filtered.length} onPage={setOffset} unit="conversations" />
               </>
             )}
           </div>

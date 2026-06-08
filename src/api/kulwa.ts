@@ -183,9 +183,9 @@ export function prefetchKulwa(): Promise<void> {
   return Promise.allSettled([
     fetchKulwaOverview(7),
     fetchKulwaSummary(7),
-    fetchKulwaQuestions(7, 50, 0),
+    fetchKulwaQuestions(7, 1000, 0),
     fetchKulwaUsers(7, 50, 0),
     fetchKulwaTopics(7),
-    fetchKulwaConversations(7, 50, 0, '', '', ''),
+    fetchKulwaConversations(7, 1000, 0, '', '', ''),
   ]).then(() => {});
 }
