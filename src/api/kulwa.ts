@@ -1,4 +1,4 @@
-import type { KulwaSummary, KulwaQuestionsResponse, KulwaUsersResponse, DayFilter, KulwaOverview, KulwaConversationsResponse, KulwaTopics } from '../types';
+import type { KulwaSummary, KulwaQuestion, KulwaQuestionsResponse, KulwaUsersResponse, DayFilter, KulwaOverview, KulwaConversation, KulwaConversationsResponse, KulwaTopics } from '../types';
 import { cacheGet, cacheGetStale, cacheIsFresh, cacheSet, cacheBust } from '../lib/cache';
 
 const BASE    = import.meta.env.VITE_KULWA_BASE_URL || '';
@@ -178,14 +178,78 @@ export async function fetchKulwaTopics(days: number): Promise<KulwaTopics> {
   return data;
 }
 
+// ─── Fetch-all helpers (paginate with server-safe limit, cache combined) ──────
+
+const BATCH = 50;
+
+export function peekAllKulwaConversations(days: number): KulwaConversation[] | null {
+  return cacheGetStale<KulwaConversation[]>(`kulwa:all:conversations:${days}`);
+}
+export function isFreshAllKulwaConversations(days: number): boolean {
+  return cacheIsFresh(`kulwa:all:conversations:${days}`);
+}
+
+export function peekAllKulwaQuestions(days: DayFilter): KulwaQuestion[] | null {
+  return cacheGetStale<KulwaQuestion[]>(`kulwa:all:questions:${days}`);
+}
+export function isFreshAllKulwaQuestions(days: DayFilter): boolean {
+  return cacheIsFresh(`kulwa:all:questions:${days}`);
+}
+
+export async function fetchAllKulwaConversations(days: number): Promise<KulwaConversation[]> {
+  const key = `kulwa:all:conversations:${days}`;
+  const hit = cacheGet<KulwaConversation[]>(key);
+  if (hit) return hit;
+
+  const first = await fetchKulwaConversations(days, BATCH, 0, '', '', '');
+  const total = first.total;
+  const all: KulwaConversation[] = [...first.data];
+
+  if (total > BATCH) {
+    const pages = Math.ceil((total - BATCH) / BATCH);
+    const rest = await Promise.all(
+      Array.from({ length: pages }, (_, i) =>
+        fetchKulwaConversations(days, BATCH, (i + 1) * BATCH, '', '', '')
+      )
+    );
+    rest.forEach(r => all.push(...r.data));
+  }
+
+  cacheSet(key, all);
+  return all;
+}
+
+export async function fetchAllKulwaQuestions(days: DayFilter): Promise<KulwaQuestion[]> {
+  const key = `kulwa:all:questions:${days}`;
+  const hit = cacheGet<KulwaQuestion[]>(key);
+  if (hit) return hit;
+
+  const first = await fetchKulwaQuestions(days, BATCH, 0);
+  const total = first.total;
+  const all: KulwaQuestion[] = [...first.data];
+
+  if (total > BATCH) {
+    const pages = Math.ceil((total - BATCH) / BATCH);
+    const rest = await Promise.all(
+      Array.from({ length: pages }, (_, i) =>
+        fetchKulwaQuestions(days, BATCH, (i + 1) * BATCH)
+      )
+    );
+    rest.forEach(r => all.push(...r.data));
+  }
+
+  cacheSet(key, all);
+  return all;
+}
+
 /** Prefetch all default views in parallel. Resolves when all settle (never rejects). */
 export function prefetchKulwa(): Promise<void> {
   return Promise.allSettled([
     fetchKulwaOverview(7),
     fetchKulwaSummary(7),
-    fetchKulwaQuestions(7, 1000, 0),
+    fetchAllKulwaQuestions(7),
     fetchKulwaUsers(7, 50, 0),
     fetchKulwaTopics(7),
-    fetchKulwaConversations(7, 1000, 0, '', '', ''),
+    fetchAllKulwaConversations(7),
   ]).then(() => {});
 }

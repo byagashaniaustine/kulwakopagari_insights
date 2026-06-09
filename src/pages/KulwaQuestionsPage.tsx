@@ -1,26 +1,25 @@
 import { useState, useEffect, useCallback, useMemo } from 'react';
 import type { KulwaQuestion, KulwaSummary, DayFilter } from '../types';
 import {
-  fetchKulwaQuestions, fetchKulwaSummary, bustKulwaCache,
-  peekKulwaQuestions, isFreshKulwaQuestions,
+  fetchAllKulwaQuestions, fetchKulwaSummary, bustKulwaCache,
+  peekAllKulwaQuestions, isFreshAllKulwaQuestions,
   peekKulwaSummary,
 } from '../api/kulwa';
 import FilterBar from '../components/FilterBar';
 import { KulwaQuestionsTable } from '../components/QuestionsTable';
 import { TableSkeleton, ErrorBlock, SectionCard } from '../components/UI';
 
-const FETCH_LIMIT = 1000;
-const PAGE        = 50;
+const PAGE = 50;
 
 export default function KulwaQuestionsPage() {
   const [days, setDays]       = useState<DayFilter>(7);
   const [intent, setIntent]   = useState('');
   const [offset, setOffset]   = useState(0);
   const [allData, setAllData] = useState<KulwaQuestion[]>(
-    () => peekKulwaQuestions(7, FETCH_LIMIT, 0)?.data ?? []
+    () => peekAllKulwaQuestions(7) ?? []
   );
   const [summary, setSummary] = useState<KulwaSummary | null>(() => peekKulwaSummary(7));
-  const [loading, setLoading] = useState(!peekKulwaQuestions(7, FETCH_LIMIT, 0));
+  const [loading, setLoading] = useState(!peekAllKulwaQuestions(7));
   const [error, setError]     = useState<string | null>(null);
 
   // Only days triggers a new fetch — intent is filtered client-side
@@ -28,20 +27,20 @@ export default function KulwaQuestionsPage() {
     if (bust) {
       bustKulwaCache();
     } else {
-      const staleQ = peekKulwaQuestions(days, FETCH_LIMIT, 0);
+      const staleQ = peekAllKulwaQuestions(days);
       const staleS = peekKulwaSummary(days);
-      if (staleQ) setAllData(staleQ.data);
+      if (staleQ) setAllData(staleQ);
       if (staleS) setSummary(staleS);
-      if (isFreshKulwaQuestions(days, FETCH_LIMIT, 0)) return;
+      if (isFreshAllKulwaQuestions(days)) return;
       if (!staleQ) setLoading(true);
     }
     setError(null);
     try {
       const [q, s] = await Promise.all([
-        fetchKulwaQuestions(days, FETCH_LIMIT, 0),
+        fetchAllKulwaQuestions(days),
         fetchKulwaSummary(days),
       ]);
-      setAllData(q.data);
+      setAllData(q);
       setSummary(s);
     } catch (e) {
       if (!allData.length) setError(e instanceof Error ? e.message : 'Failed to load');

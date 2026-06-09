@@ -2,8 +2,8 @@ import { useState, useEffect, useCallback, useContext, useMemo } from 'react';
 import { RefreshCw, Search, Menu } from 'lucide-react';
 import type { KulwaConversation, ClosingState } from '../types';
 import {
-  fetchKulwaConversations, bustKulwaCache,
-  peekKulwaConversations, isFreshKulwaConversations,
+  fetchAllKulwaConversations, bustKulwaCache,
+  peekAllKulwaConversations, isFreshAllKulwaConversations,
 } from '../api/kulwa';
 import { TableSkeleton, ErrorBlock, Pagination } from '../components/UI';
 import { AppContext } from '../context';
@@ -17,8 +17,7 @@ const DAY_OPTS: { label: string; value: DayOpt }[] = [
   { label: '90d', value: 90 },
 ];
 
-const FETCH_LIMIT = 1000;
-const PAGE_SIZE   = 50;
+const PAGE_SIZE = 50;
 
 function ChannelBadge({ channel }: { channel: string }) {
   const colors: Record<string, { bg: string; color: string }> = {
@@ -82,9 +81,9 @@ export default function KulwaConversationsPage() {
   const [search, setSearch]     = useState('');
   const [offset, setOffset]     = useState(0);
   const [allRows, setAllRows]   = useState<KulwaConversation[]>(
-    () => peekKulwaConversations(7, FETCH_LIMIT, 0, '', '', '')?.data ?? []
+    () => peekAllKulwaConversations(7) ?? []
   );
-  const [loading, setLoading]   = useState(!peekKulwaConversations(7, FETCH_LIMIT, 0, '', '', ''));
+  const [loading, setLoading]   = useState(!peekAllKulwaConversations(7));
   const [error, setError]       = useState<string | null>(null);
   const [knownIntents, setKnownIntents] = useState<{ value: string; label: string }[]>([]);
 
@@ -93,18 +92,18 @@ export default function KulwaConversationsPage() {
     if (bust) {
       bustKulwaCache();
     } else {
-      const stale = peekKulwaConversations(days, FETCH_LIMIT, 0, '', '', '');
-      if (stale) setAllRows(stale.data);
-      if (isFreshKulwaConversations(days, FETCH_LIMIT, 0, '', '', '')) return;
+      const stale = peekAllKulwaConversations(days);
+      if (stale) setAllRows(stale);
+      if (isFreshAllKulwaConversations(days)) return;
       if (!stale) setLoading(true);
     }
     setError(null);
     try {
-      const data = await fetchKulwaConversations(days, FETCH_LIMIT, 0, '', '', '');
-      setAllRows(data.data);
+      const data = await fetchAllKulwaConversations(days);
+      setAllRows(data);
       setKnownIntents(() => {
         const map = new Map<string, string>();
-        data.data.forEach(c => { if (c.intent_id) map.set(c.intent_id, c.intent || c.intent_id); });
+        data.forEach(c => { if (c.intent_id) map.set(c.intent_id, c.intent || c.intent_id); });
         return Array.from(map.entries()).map(([value, label]) => ({ value, label })).sort((a, b) => a.label.localeCompare(b.label));
       });
     } catch (e) {
