@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback, useContext, useMemo } from 'react';
-import { RefreshCw, Search, Menu } from 'lucide-react';
+import { RefreshCw, Search, Menu, ChevronDown, MessageSquare } from 'lucide-react';
 import type { KulwaConversation, ClosingState } from '../types';
 import {
   fetchAllKulwaConversations, bustKulwaCache,
@@ -73,9 +73,58 @@ function fmtReplyMs(ms: number | null): string {
   return `${(ms / 1000).toFixed(1)}s`;
 }
 
+function MessageThread({ conv }: { conv: KulwaConversation }) {
+  const hasUser = !!conv.last_user_msg;
+  const hasBot  = !!conv.last_bot_reply;
+  if (!hasUser && !hasBot) {
+    return (
+      <div className="flex items-center justify-center py-6 gap-2 text-[13px]"
+           style={{ color: 'var(--ink-3)' }}>
+        <MessageSquare size={14} />
+        No message preview available
+      </div>
+    );
+  }
+  const isLastOnly = conv.messages > 2 || (conv.messages === 2 && hasUser && hasBot);
+  return (
+    <div style={{ padding: '14px 20px 16px' }}>
+      {isLastOnly && (
+        <p className="text-[11px] font-semibold mb-3" style={{ color: 'var(--ink-3)' }}>
+          Last exchange &nbsp;·&nbsp; {conv.messages} message{conv.messages !== 1 ? 's' : ''} total
+        </p>
+      )}
+      <div className="flex flex-col gap-2" style={{ maxWidth: 620 }}>
+        {hasUser && (
+          <div className="flex justify-start">
+            <div className="rounded-[12px] rounded-tl-[3px] text-[13px] px-4 py-2"
+                 style={{ background: 'var(--surface-2)', color: 'var(--ink)', maxWidth: '80%', lineHeight: 1.5 }}>
+              <span className="block text-[10px] font-bold mb-[3px]" style={{ color: 'var(--ink-3)' }}>
+                {conv.name}
+              </span>
+              {conv.last_user_msg}
+            </div>
+          </div>
+        )}
+        {hasBot && (
+          <div className="flex justify-end">
+            <div className="rounded-[12px] rounded-tr-[3px] text-[13px] px-4 py-2"
+                 style={{ background: 'var(--accent)', color: '#fff', maxWidth: '80%', lineHeight: 1.5 }}>
+              <span className="block text-[10px] font-bold mb-[3px]" style={{ color: 'rgba(255,255,255,0.7)' }}>
+                Kulwa
+              </span>
+              {conv.last_bot_reply}
+            </div>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
 export default function KulwaConversationsPage() {
   const { openSidebar } = useContext(AppContext);
   const [days, setDays]         = useState<DayOpt>(7);
+  const [expandedId, setExpandedId] = useState<string | null>(null);
   const [status, setStatus]     = useState<StatusFilter>('');
   const [intent, setIntent]     = useState('');
   const [search, setSearch]     = useState('');
@@ -256,6 +305,7 @@ export default function KulwaConversationsPage() {
                   <table className="w-full text-[13px]" style={{ borderCollapse: 'collapse' }}>
                     <thead>
                       <tr style={{ borderBottom: '1px solid var(--line)', background: 'var(--surface-2)' }}>
+                        <th style={{ width: 32 }} />
                         {['Name', 'Channel', 'Intent', 'Messages', 'Duration', 'Started', 'Outcome', 'Avg Reply'].map(h => (
                           <th key={h} className="text-left px-5 py-3 text-[11px] font-bold uppercase tracking-[0.06em]"
                               style={{ color: 'var(--ink-3)', whiteSpace: 'nowrap' }}>{h}</th>
@@ -269,34 +319,61 @@ export default function KulwaConversationsPage() {
                             No conversations found.
                           </td>
                         </tr>
-                      ) : pageRows.map((row, idx) => (
-                        <tr key={row.id}
-                            style={{ borderBottom: idx < pageRows.length - 1 ? '1px solid var(--line)' : 'none' }}
-                            onMouseEnter={e => (e.currentTarget as HTMLElement).style.background = 'var(--surface-2)'}
-                            onMouseLeave={e => (e.currentTarget as HTMLElement).style.background = 'transparent'}>
-                          <td className="px-5 py-3">
-                            <p className="font-semibold" style={{ color: 'var(--ink)' }}>{row.name}</p>
-                          </td>
-                          <td className="px-5 py-3"><ChannelBadge channel={row.channel} /></td>
-                          <td className="px-5 py-3">
-                            <span className="inline-flex rounded-full text-[11px] font-semibold"
-                                  style={{ padding: '2px 9px', background: 'var(--accent-soft)', color: 'var(--accent-hover)' }}>
-                              {row.intent || '—'}
-                            </span>
-                          </td>
-                          <td className="px-5 py-3 font-mono tabular-nums" style={{ color: 'var(--ink-2)' }}>
-                            {row.messages}
-                          </td>
-                          <td className="px-5 py-3" style={{ color: 'var(--ink-3)', whiteSpace: 'nowrap' }}>{row.duration}</td>
-                          <td className="px-5 py-3" style={{ color: 'var(--ink-3)', whiteSpace: 'nowrap' }}>{row.started}</td>
-                          <td className="px-5 py-3">
-                            <ClosingStateBadge state={(row.closing_state || 'resolved') as ClosingState} />
-                          </td>
-                          <td className="px-5 py-3 font-mono tabular-nums text-[12px]" style={{ color: 'var(--ink-3)', whiteSpace: 'nowrap' }}>
-                            {fmtReplyMs(row.avg_reply_ms)}
-                          </td>
-                        </tr>
-                      ))}
+                      ) : pageRows.map((row, idx) => {
+                        const isExpanded = expandedId === row.id;
+                        const isLast = idx === pageRows.length - 1;
+                        return (
+                          <>
+                            <tr key={row.id}
+                                onClick={() => setExpandedId(isExpanded ? null : row.id)}
+                                style={{
+                                  borderBottom: (!isExpanded && !isLast) ? '1px solid var(--line)' : 'none',
+                                  cursor: 'pointer',
+                                  background: isExpanded ? 'var(--surface-2)' : 'transparent',
+                                }}
+                                onMouseEnter={e => { if (!isExpanded) (e.currentTarget as HTMLElement).style.background = 'var(--surface-2)'; }}
+                                onMouseLeave={e => { if (!isExpanded) (e.currentTarget as HTMLElement).style.background = 'transparent'; }}>
+                              <td className="pl-4 pr-0 py-3" style={{ width: 32 }}>
+                                <ChevronDown size={14}
+                                  style={{
+                                    color: 'var(--ink-3)',
+                                    transform: isExpanded ? 'rotate(180deg)' : 'rotate(0deg)',
+                                    transition: 'transform 0.18s ease',
+                                  }} />
+                              </td>
+                              <td className="px-5 py-3">
+                                <p className="font-semibold" style={{ color: 'var(--ink)' }}>{row.name}</p>
+                              </td>
+                              <td className="px-5 py-3"><ChannelBadge channel={row.channel} /></td>
+                              <td className="px-5 py-3">
+                                <span className="inline-flex rounded-full text-[11px] font-semibold"
+                                      style={{ padding: '2px 9px', background: 'var(--accent-soft)', color: 'var(--accent-hover)' }}>
+                                  {row.intent || '—'}
+                                </span>
+                              </td>
+                              <td className="px-5 py-3 font-mono tabular-nums" style={{ color: 'var(--ink-2)' }}>
+                                {row.messages}
+                              </td>
+                              <td className="px-5 py-3" style={{ color: 'var(--ink-3)', whiteSpace: 'nowrap' }}>{row.duration}</td>
+                              <td className="px-5 py-3" style={{ color: 'var(--ink-3)', whiteSpace: 'nowrap' }}>{row.started}</td>
+                              <td className="px-5 py-3">
+                                <ClosingStateBadge state={(row.closing_state || 'resolved') as ClosingState} />
+                              </td>
+                              <td className="px-5 py-3 font-mono tabular-nums text-[12px]" style={{ color: 'var(--ink-3)', whiteSpace: 'nowrap' }}>
+                                {fmtReplyMs(row.avg_reply_ms)}
+                              </td>
+                            </tr>
+                            {isExpanded && (
+                              <tr key={`${row.id}-expand`}
+                                  style={{ borderBottom: !isLast ? '1px solid var(--line)' : 'none', background: 'var(--canvas)' }}>
+                                <td colSpan={9} style={{ padding: 0 }}>
+                                  <MessageThread conv={row} />
+                                </td>
+                              </tr>
+                            )}
+                          </>
+                        );
+                      })}
                     </tbody>
                   </table>
                 </div>
