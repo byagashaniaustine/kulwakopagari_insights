@@ -207,22 +207,24 @@ export default function KulwaPage() {
                     <><KpiCardSkeleton /><KpiCardSkeleton /><KpiCardSkeleton /><KpiCardSkeleton /></>
                   ) : data ? (
                     data.kpis.map((kpi) => (
-                      <div key={kpi.id} className="card p-4 animate-fadeUp">
-                        <div className="flex items-center justify-between mb-2">
-                          <p className="text-[12px] font-bold uppercase tracking-[0.07em]" style={{ color: 'var(--ink-3)' }}>
+                      <div key={kpi.id} className="card p-3 sm:p-4 animate-fadeUp">
+                        <div className="flex items-start flex-wrap gap-x-2 gap-y-1 mb-2">
+                          <p className="text-[11px] sm:text-[12px] font-bold uppercase tracking-[0.07em] flex-1 min-w-0" style={{ color: 'var(--ink-3)' }}>
                             {kpi.label}
                           </p>
                           <DeltaChip pct={kpi.delta_pct} dir={kpi.delta_dir} goodDir={kpi.good_dir} />
                         </div>
-                        <div className="flex items-end justify-between gap-2">
-                          <div>
-                            <p className="text-[30px] font-extrabold leading-none tabular-nums" style={{ color: 'var(--ink)' }}>
+                        <div className="flex items-end justify-between gap-1">
+                          <div className="min-w-0">
+                            <p className="text-[22px] sm:text-[26px] lg:text-[30px] font-extrabold leading-none tabular-nums" style={{ color: 'var(--ink)' }}>
                               {kpi.value}{kpi.unit}
                             </p>
-                            <p className="text-[11.5px] mt-1.5" style={{ color: 'var(--ink-3)' }}>{kpi.sub}</p>
+                            <p className="text-[11px] mt-1" style={{ color: 'var(--ink-3)' }}>{kpi.sub}</p>
                           </div>
                           {kpi.spark.length > 1 && (
-                            <Sparkline data={kpi.spark} width={80} height={32} />
+                            <span className="hidden sm:block flex-none">
+                              <Sparkline data={kpi.spark} width={60} height={28} />
+                            </span>
                           )}
                         </div>
                       </div>
@@ -392,7 +394,7 @@ export default function KulwaPage() {
                         key={key}
                         type="button"
                         onClick={() => setSelectedOutcome(isSelected ? null : key)}
-                        className="card p-4 flex flex-col gap-2 animate-fadeUp text-left w-full transition-all duration-150"
+                        className="card p-3 sm:p-4 flex flex-col gap-2 animate-fadeUp text-left w-full transition-all duration-150"
                         style={{
                           outline: isSelected ? `2px solid ${accent}` : undefined,
                           outlineOffset: isSelected ? 1 : undefined,
@@ -403,7 +405,7 @@ export default function KulwaPage() {
                           <span className="text-[11px] font-bold rounded-full px-2 py-[2px]"
                                 style={{ background: soft, color: accent }}>{pct}%</span>
                         </div>
-                        <p className="text-[30px] font-extrabold leading-none tabular-nums" style={{ color: 'var(--ink)' }}>
+                        <p className="text-[24px] sm:text-[28px] lg:text-[30px] font-extrabold leading-none tabular-nums" style={{ color: 'var(--ink)' }}>
                           {count.toLocaleString()}
                         </p>
                         <p className="text-[11.5px]" style={{ color: 'var(--ink-3)' }}>{desc}</p>
@@ -453,7 +455,7 @@ export default function KulwaPage() {
                 boxShadow: '-8px 0 32px rgba(0,0,0,0.12)',
               }}>
               {/* Header */}
-              <div className="flex-shrink-0 flex items-center justify-between px-5 py-4"
+              <div className="flex-shrink-0 flex items-center justify-between px-3 sm:px-5 py-3 sm:py-4"
                    style={{ borderBottom: '1px solid var(--line)', background: meta.soft }}>
                 <div>
                   <p className="text-[11px] font-bold uppercase tracking-[0.08em] mb-0.5"

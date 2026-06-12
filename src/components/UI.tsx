@@ -111,12 +111,12 @@ export function SectionCard({ title, description, children, action }: {
 }) {
   return (
     <div className="card overflow-hidden animate-fadeUp">
-      <div className="flex items-center justify-between px-5 py-4"
+      <div className="flex items-center justify-between px-3 sm:px-4 lg:px-5 py-3 lg:py-4"
            style={{ borderBottom: '1px solid var(--line)' }}>
         <div>
-          <h3 className="font-bold text-[16px]" style={{ color: 'var(--ink)' }}>{title}</h3>
+          <h3 className="font-bold text-[14px] sm:text-[15px] lg:text-[16px]" style={{ color: 'var(--ink)' }}>{title}</h3>
           {description && (
-            <p className="text-[12px] mt-[2px]" style={{ color: 'var(--ink-3)' }}>{description}</p>
+            <p className="text-[11px] sm:text-[12px] mt-[2px]" style={{ color: 'var(--ink-3)' }}>{description}</p>
           )}
         </div>
         {action && <div className="flex-shrink-0">{action}</div>}
