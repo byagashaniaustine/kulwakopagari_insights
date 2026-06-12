@@ -3,6 +3,14 @@ export default {
   content: ['./index.html', './src/**/*.{ts,tsx}'],
   darkMode: 'class',
   theme: {
+    screens: {
+      xs:    '330px',   // mobile small (minimum)
+      sm:    '375px',   // mobile mid
+      md:    '425px',   // mobile large
+      lg:    '1024px',  // desktop
+      xl:    '1280px',
+      '2xl': '1536px',
+    },
     extend: {
       fontFamily: {
         sans: ['"Red Hat Display"', 'Inter', 'system-ui', 'sans-serif'],

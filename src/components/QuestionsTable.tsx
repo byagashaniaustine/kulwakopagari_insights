@@ -65,7 +65,7 @@ export function KulwaQuestionsTable({
 
   return (
     <div>
-      <div className="px-5 py-3" style={{ borderBottom: '1px solid var(--line)', background: 'var(--surface-2)' }}>
+      <div className="px-3 sm:px-4 md:px-5 py-2 sm:py-3" style={{ borderBottom: '1px solid var(--line)', background: 'var(--surface-2)' }}>
         <FilterPills options={intentOptions} selected={selectedIntent} onSelect={onIntentChange} label="Filter" />
       </div>
 

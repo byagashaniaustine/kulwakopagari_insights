@@ -32,7 +32,7 @@ export default function App() {
 
   return (
     <AppContext.Provider value={{ darkMode, toggleDarkMode, openSidebar: () => setSidebarOpen(true) }}>
-      <div className="flex h-screen overflow-hidden" style={{ background: 'var(--canvas)' }}>
+      <div className="flex h-screen overflow-hidden min-w-[330px]" style={{ background: 'var(--canvas)' }}>
 
         {sidebarOpen && (
           <div

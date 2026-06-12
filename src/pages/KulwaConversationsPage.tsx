@@ -198,105 +198,115 @@ export default function KulwaConversationsPage() {
 
   return (
     <div className="h-full flex flex-col overflow-hidden">
-      <div className="flex-shrink-0 px-6 py-4 flex flex-wrap items-center gap-3"
+      <div className="flex-shrink-0 flex flex-col gap-2 px-3 sm:px-4 md:px-6 py-3 lg:py-4"
            style={{ background: 'var(--surface)', borderBottom: '1px solid var(--line)' }}>
 
-        <button type="button" onClick={openSidebar} aria-label="Open sidebar"
-                className="lg:hidden w-10 h-10 flex items-center justify-center rounded-[8px]"
-                style={{ border: '1px solid var(--line)', color: 'var(--ink-3)' }}>
-          <Menu size={18} />
-        </button>
+        {/* Row 1: hamburger + title + refresh */}
+        <div className="flex items-center gap-3">
+          <button type="button" onClick={openSidebar} aria-label="Open sidebar"
+                  className="lg:hidden w-10 h-10 flex items-center justify-center rounded-[8px] flex-none"
+                  style={{ border: '1px solid var(--line)', color: 'var(--ink-3)' }}>
+            <Menu size={18} />
+          </button>
 
-        <div className="flex-1 min-w-0">
-          <h1 className="font-extrabold text-[22px] tracking-tight leading-none" style={{ color: 'var(--ink)' }}>
-            Conversations
-          </h1>
-          {allRows.length > 0 && (
-            <p className="text-[12px] mt-[3px]" style={{ color: 'var(--ink-3)' }}>
-              {filtered.length.toLocaleString()} {status || intent || search ? 'matching' : 'total'} conversations
-            </p>
-          )}
+          <div className="flex-1 min-w-0">
+            <h1 className="font-extrabold text-[18px] md:text-[20px] lg:text-[22px] tracking-tight leading-none"
+                style={{ color: 'var(--ink)' }}>
+              Conversations
+            </h1>
+            {allRows.length > 0 && (
+              <p className="text-[11px] sm:text-[12px] mt-[3px]" style={{ color: 'var(--ink-3)' }}>
+                {filtered.length.toLocaleString()} {status || intent || search ? 'matching' : 'total'} conversations
+              </p>
+            )}
+          </div>
+
+          <button type="button" onClick={() => load(true)} disabled={loading} aria-label="Refresh"
+                  className="w-10 h-10 flex items-center justify-center rounded-[8px] disabled:opacity-40 flex-none"
+                  style={{ border: '1px solid var(--line)', background: 'var(--surface)', color: 'var(--ink-3)' }}>
+            <RefreshCw size={15} className={loading ? 'animate-spin' : ''} />
+          </button>
         </div>
 
-        <div className="flex items-center gap-[3px] p-[3px] rounded-[8px]"
-             style={{ background: 'var(--surface-2)', border: '1px solid var(--line)' }}>
-          {DAY_OPTS.map(opt => {
-            const isActive = days === opt.value;
-            return (
-              <button key={opt.value} type="button" onClick={() => handleDays(opt.value)}
-                      className="rounded-[6px] text-[13px] font-semibold transition-all duration-150"
-                      style={{
-                        height: '32px', padding: '0 14px', border: 'none', cursor: 'pointer',
-                        background: isActive ? 'var(--surface)' : 'transparent',
-                        color: isActive ? 'var(--accent)' : 'var(--ink-3)',
-                        boxShadow: isActive ? '0 1px 2px rgba(0,0,0,0.06)' : 'none',
-                      }}>
-                {opt.label}
-              </button>
-            );
-          })}
-        </div>
+        {/* Row 2: controls — wraps gracefully at narrow widths */}
+        <div className="flex items-center gap-2 flex-wrap">
+          {/* Day selector */}
+          <div className="flex items-center gap-[3px] p-[3px] rounded-[8px] flex-none"
+               style={{ background: 'var(--surface-2)', border: '1px solid var(--line)' }}>
+            {DAY_OPTS.map(opt => {
+              const isActive = days === opt.value;
+              return (
+                <button key={opt.value} type="button" onClick={() => handleDays(opt.value)}
+                        className="rounded-[6px] text-[12px] lg:text-[13px] font-semibold transition-all duration-150"
+                        style={{
+                          height: '30px', padding: '0 10px', border: 'none', cursor: 'pointer',
+                          background: isActive ? 'var(--surface)' : 'transparent',
+                          color: isActive ? 'var(--accent)' : 'var(--ink-3)',
+                          boxShadow: isActive ? '0 1px 2px rgba(0,0,0,0.06)' : 'none',
+                        }}>
+                  {opt.label}
+                </button>
+              );
+            })}
+          </div>
 
-        {/* Instant search — filters as you type */}
-        <div className="relative">
-          <Search size={13} className="absolute left-[10px] top-1/2 -translate-y-1/2" style={{ color: 'var(--ink-3)' }} />
-          <input
-            type="text"
-            value={search}
-            onChange={e => setSearch(e.target.value)}
-            placeholder="Search name…"
-            className="rounded-[8px] text-[13px] font-medium outline-none"
+          {/* Search — grows to fill remaining space */}
+          <div className="relative flex-1 min-w-[100px]">
+            <Search size={13} className="absolute left-[10px] top-1/2 -translate-y-1/2" style={{ color: 'var(--ink-3)' }} />
+            <input
+              type="text"
+              value={search}
+              onChange={e => setSearch(e.target.value)}
+              placeholder="Search name…"
+              className="rounded-[8px] text-[13px] font-medium outline-none w-full"
+              style={{
+                height: 34, paddingLeft: 30, paddingRight: 10,
+                border: '1px solid var(--line)', background: 'var(--surface)',
+                color: 'var(--ink)',
+              }}
+            />
+          </div>
+
+          {/* Status pills */}
+          <div className="flex items-center gap-1 flex-none">
+            {(['', 'active', 'resolved'] as StatusFilter[]).map(s => {
+              const label = s === '' ? 'All' : s.charAt(0).toUpperCase() + s.slice(1);
+              const isActive = status === s;
+              return (
+                <button key={s} type="button" onClick={() => setStatus(s)}
+                        className="rounded-full text-[12px] font-semibold transition-all duration-150"
+                        style={{
+                          height: 28, padding: '0 10px', border: '1px solid var(--line)',
+                          background: isActive ? 'var(--accent)' : 'var(--surface)',
+                          color: isActive ? '#fff' : 'var(--ink-3)',
+                        }}>
+                  {label}
+                </button>
+              );
+            })}
+          </div>
+
+          {/* Intent select */}
+          <select
+            value={intent}
+            onChange={e => setIntent(e.target.value)}
+            className="rounded-[8px] text-[12px] lg:text-[13px] font-medium outline-none flex-1 min-w-[100px]"
             style={{
-              height: 36, paddingLeft: 30, paddingRight: 10,
+              height: 34, padding: '0 8px',
               border: '1px solid var(--line)', background: 'var(--surface)',
-              color: 'var(--ink)', width: 180,
-            }}
-          />
+              color: 'var(--ink)', cursor: 'pointer',
+            }}>
+            <option value="">All intents</option>
+            {knownIntents.map(i => <option key={i.value} value={i.value}>{i.label}</option>)}
+          </select>
         </div>
-
-        <div className="flex items-center gap-1">
-          {(['', 'active', 'resolved'] as StatusFilter[]).map(s => {
-            const label = s === '' ? 'All' : s.charAt(0).toUpperCase() + s.slice(1);
-            const isActive = status === s;
-            return (
-              <button key={s} type="button" onClick={() => setStatus(s)}
-                      className="rounded-full text-[12px] font-semibold transition-all duration-150"
-                      style={{
-                        height: 30, padding: '0 12px', border: '1px solid var(--line)',
-                        background: isActive ? 'var(--accent)' : 'var(--surface)',
-                        color: isActive ? '#fff' : 'var(--ink-3)',
-                      }}>
-                {label}
-              </button>
-            );
-          })}
-        </div>
-
-        <select
-          value={intent}
-          onChange={e => setIntent(e.target.value)}
-          className="rounded-[8px] text-[13px] font-medium outline-none"
-          style={{
-            height: 36, padding: '0 10px',
-            border: '1px solid var(--line)', background: 'var(--surface)',
-            color: 'var(--ink)', cursor: 'pointer',
-          }}>
-          <option value="">All intents</option>
-          {knownIntents.map(i => <option key={i.value} value={i.value}>{i.label}</option>)}
-        </select>
-
-        <button type="button" onClick={() => load(true)} disabled={loading} aria-label="Refresh"
-                className="w-10 h-10 flex items-center justify-center rounded-[8px] disabled:opacity-40"
-                style={{ border: '1px solid var(--line)', background: 'var(--surface)', color: 'var(--ink-3)' }}>
-          <RefreshCw size={15} className={loading ? 'animate-spin' : ''} />
-        </button>
       </div>
 
       <div className="flex-1 overflow-y-auto" style={{ background: 'var(--canvas)' }}>
         {error && !allRows.length ? (
           <div className="p-8"><ErrorBlock message={error} onRetry={load} /></div>
         ) : (
-          <div className="card m-6 overflow-hidden animate-fadeUp">
+          <div className="card m-3 sm:m-4 md:m-5 lg:m-6 overflow-hidden animate-fadeUp">
             {loading && !allRows.length ? (
               <TableSkeleton rows={8} />
             ) : (

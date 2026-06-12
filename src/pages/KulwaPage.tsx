@@ -14,10 +14,10 @@ type SubTab = 'overview' | 'intents' | 'outcomes';
 
 const INTENT_PAGE_SIZE = 5;
 
-const SUB_TABS: { key: SubTab; label: string }[] = [
-  { key: 'overview', label: 'Overview' },
-  { key: 'intents',  label: 'Intent Breakdown' },
-  { key: 'outcomes', label: 'Conversation Outcomes' },
+const SUB_TABS: { key: SubTab; label: string; shortLabel: string }[] = [
+  { key: 'overview', label: 'Overview',              shortLabel: 'Overview' },
+  { key: 'intents',  label: 'Intent Breakdown',      shortLabel: 'Intents'  },
+  { key: 'outcomes', label: 'Conversation Outcomes', shortLabel: 'Outcomes' },
 ];
 
 function DeltaChip({ pct, dir, goodDir }: { pct: number | null; dir: 'up' | 'down'; goodDir: 'up' | 'down' }) {
@@ -133,7 +133,7 @@ export default function KulwaPage() {
 
       {/* Live status strip — always visible */}
       {data && (
-        <div className="flex-shrink-0 flex items-center gap-3 px-6 py-2.5 text-[13px] font-semibold"
+        <div className="flex-shrink-0 flex items-center flex-wrap gap-x-3 gap-y-1 px-3 sm:px-4 md:px-6 py-2 sm:py-2.5 text-[12px] sm:text-[13px] font-semibold"
              style={{ background: 'var(--surface)', borderBottom: '1px solid var(--line)' }}>
           <Activity size={14} style={{ color: 'var(--accent)' }} />
           <span style={{ color: 'var(--ink-2)' }}>Live:</span>
@@ -149,8 +149,8 @@ export default function KulwaPage() {
       )}
 
       {/* Sub-tab navigation — sits below the live bar */}
-      <div className="flex-shrink-0 flex items-center gap-1 px-6 pt-3 pb-0"
-           style={{ background: 'var(--canvas)' }}>
+      <div className="flex-shrink-0 flex items-end gap-0.5 px-3 sm:px-4 md:px-6 pt-3 pb-0 overflow-x-auto"
+           style={{ background: 'var(--canvas)', borderBottom: '1px solid var(--line)' }}>
         {SUB_TABS.map(t => {
           const isActive = tab === t.key;
           return (
@@ -158,10 +158,10 @@ export default function KulwaPage() {
               key={t.key}
               type="button"
               onClick={() => setTab(t.key)}
-              className="rounded-t-[8px] text-[13px] font-semibold transition-all duration-150"
+              className="rounded-t-[8px] text-[11px] sm:text-[12px] md:text-[13px] font-semibold transition-all duration-150 whitespace-nowrap flex-none"
               style={{
-                height: 36,
-                padding: '0 18px',
+                height: 34,
+                padding: '0 10px',
                 border: '1px solid var(--line)',
                 borderBottom: isActive ? '1px solid var(--surface)' : '1px solid var(--line)',
                 background: isActive ? 'var(--surface)' : 'transparent',
@@ -171,18 +171,18 @@ export default function KulwaPage() {
                 position: 'relative',
                 zIndex: isActive ? 1 : 0,
               }}>
-              {t.label}
+              <span className="md:hidden">{t.shortLabel}</span>
+              <span className="hidden md:inline">{t.label}</span>
             </button>
           );
         })}
-        <div className="flex-1" style={{ borderBottom: '1px solid var(--line)', alignSelf: 'flex-end', height: 1 }} />
       </div>
 
       <div className="flex-1 overflow-y-auto" style={{ background: 'var(--surface)', borderTop: '1px solid var(--line)' }}>
         {error && !data ? (
           <div className="p-8"><ErrorBlock message={error} onRetry={load} /></div>
         ) : (
-          <div className="p-6 space-y-4 max-w-[1600px] mx-auto" style={{ background: 'var(--canvas)' }}>
+          <div className="p-3 sm:p-4 md:p-5 lg:p-6 space-y-3 lg:space-y-4 max-w-[1600px] mx-auto" style={{ background: 'var(--canvas)' }}>
 
             {/* ── OVERVIEW TAB ─────────────────────────────────── */}
             {tab === 'overview' && (
@@ -202,7 +202,7 @@ export default function KulwaPage() {
                 )}
 
                 {/* KPI cards */}
-                <div className="grid grid-cols-2 xl:grid-cols-4 gap-4">
+                <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 lg:gap-4">
                   {loading && !data ? (
                     <><KpiCardSkeleton /><KpiCardSkeleton /><KpiCardSkeleton /><KpiCardSkeleton /></>
                   ) : data ? (
@@ -374,7 +374,7 @@ export default function KulwaPage() {
               <>
                 <p className="text-[11px] font-bold uppercase tracking-[0.08em] px-1 -mb-1"
                    style={{ color: 'var(--ink-3)' }}>Conversation Outcomes</p>
-                <div className="grid grid-cols-2 xl:grid-cols-5 gap-4">
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-3 lg:gap-4">
                   {([
                     { key: 'active',          label: 'Active',          desc: 'Live right now',          accent: '#00AA40',      soft: '#E6F7EC' },
                     { key: 'satisfied',       label: 'Satisfied',       desc: 'User confirmed happy',    accent: '#4338CA',      soft: '#EEF2FF' },
@@ -447,7 +447,7 @@ export default function KulwaPage() {
             <div
               className="fixed right-0 top-0 bottom-0 z-50 flex flex-col"
               style={{
-                width: 420,
+                width: 'min(420px, 100vw)',
                 background: 'var(--surface)',
                 borderLeft: '1px solid var(--line)',
                 boxShadow: '-8px 0 32px rgba(0,0,0,0.12)',

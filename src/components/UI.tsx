@@ -143,24 +143,26 @@ export function Pagination({ offset, limit, total, onPage, unit = 'results' }: {
   if (totalPages <= 1) return null;
 
   return (
-    <div className="flex items-center justify-between px-5 py-3"
+    <div className="flex items-center justify-between px-3 sm:px-5 py-3"
          style={{ borderTop: '1px solid var(--line)', background: 'var(--surface-2)' }}>
-      <p className="text-[12.5px]" style={{ color: 'var(--ink-3)' }}>
+      <p className="text-[11px] sm:text-[12.5px] min-w-0" style={{ color: 'var(--ink-3)' }}>
         <span className="font-bold tabular-nums" style={{ color: 'var(--ink-2)' }}>
           {(offset + 1).toLocaleString()}–{Math.min(offset + limit, total).toLocaleString()}
-        </span>{' '}of {total.toLocaleString()} {unit}
+        </span>
+        <span className="hidden sm:inline"> of {total.toLocaleString()} {unit}</span>
+        <span className="sm:hidden"> / {total.toLocaleString()}</span>
       </p>
       <div className="flex items-center gap-[6px]">
         <button type="button" onClick={() => onPage(Math.max(0, offset - limit))} disabled={offset === 0}
-                className="h-[30px] px-3 rounded-[7px] text-[13px] font-semibold disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+                className="h-[28px] sm:h-[30px] px-2 sm:px-3 rounded-[7px] text-[12px] sm:text-[13px] font-semibold disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
                 style={{ border: '1px solid var(--line)', background: 'var(--surface)', color: 'var(--ink-2)' }}>
           ← Prev
         </button>
-        <span className="text-[12px] font-bold tabular-nums px-2" style={{ color: 'var(--ink-3)' }}>
+        <span className="text-[11px] sm:text-[12px] font-bold tabular-nums px-1 sm:px-2" style={{ color: 'var(--ink-3)' }}>
           {currentPage} / {totalPages}
         </span>
         <button type="button" onClick={() => onPage(offset + limit)} disabled={offset + limit >= total}
-                className="h-[30px] px-3 rounded-[7px] text-[13px] font-semibold disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+                className="h-[28px] sm:h-[30px] px-2 sm:px-3 rounded-[7px] text-[12px] sm:text-[13px] font-semibold disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
                 style={{ border: '1px solid var(--line)', background: 'var(--surface)', color: 'var(--ink-2)' }}>
           Next →
         </button>
